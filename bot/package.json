@@ -1,0 +1,10 @@
+{
+  "name": "telegram-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot using Telegraf.js",
+  "main": "index.js",
+  "dependencies": {
+    "dotenv": "^10.0.0",
+    "telegraf": "^3.38.0"
+  }
+}
