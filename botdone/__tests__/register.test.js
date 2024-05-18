@@ -1,20 +1,37 @@
-// register.test.js
 const { Telegraf } = require('telegraf');
+const { authHandler, bot } = require('../newbot');
+const mongoose = require('mongoose');
 const { User } = require('../models');
-const bot = require('../testbot');
 
 jest.mock('../models');
-jest.mock('telegraf');
+jest.mock('telegraf', () => ({
+    Telegraf: jest.fn().mockImplementation(() => ({
+        telegram: {
+            sendMessage: jest.fn()
+        },
+        command: jest.fn(),
+        on: jest.fn(),
+        launch: jest.fn()
+    }))
+}));
 
 describe('/register command', () => {
   let ctx;
+  let botMock;
 
   beforeEach(() => {
-    ctx = {
-      from: { id: 123 },
-      message: { text: '/register John Doe' },
-      reply: jest.fn(),
-    };
+      ctx = {
+          message: { text: '/auth somekey' },
+          reply: jest.fn(),
+          from: { id: 123 },
+      };
+
+      botMock = new Telegraf();
+      bot.telegram = botMock.telegram; // Заменяем бот на мокаемый объект
+  });
+
+  afterEach(() => {
+      jest.clearAllMocks();
   });
 
   it('should register a new user', async () => {

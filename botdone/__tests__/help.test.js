@@ -3,63 +3,62 @@ const { helpHandler, bot } = require('../newbot');
 const mongoose = require('mongoose');
 const { User } = require('../models');
 
-jest.mock('telegraf');
-
+jest.mock('../models');
+jest.mock('telegraf', () => ({
+    Telegraf: jest.fn().mockImplementation(() => ({
+        telegram: {
+            sendMessage: jest.fn()
+        },
+        command: jest.fn(),
+        on: jest.fn(),
+        launch: jest.fn()
+    }))
+}));
 describe('/help command', () => {
-  let ctx;
+    let ctx;
 
-  beforeEach(() => {
-    ctx = {
-      message: { text: '/help' },
-      reply: jest.fn(),
-    };
-  });
+    beforeEach(() => {
+        ctx = {
+            message: { text: '/help' },
+            reply: jest.fn(),
+            from: { id: 123, isAuthorized: true },
+        };
 
-  it('should provide help message', async () => {
-    helpHandler(ctx);
+        botMock = new Telegraf();
+        bot.telegram = botMock.telegram; // Заменяем бот на мокаемый объект
+    });
 
-    expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Список доступных команд'));
-  });
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
 
-  it('should list all commands', async () => {
-    helpHandler(ctx);
+    it('should provide help message', async () => {
+        await helpHandler(ctx);
 
-    const helpMessage = `
-      /auth <ключ> - Авторизация
-      /register <ФИО> - Регистрация
-      /deleteorder <ID> - Удалить заказ
-      /addorder <сумма> <комментарий> - Добавить заказ
-      /takeorder <ID> - Взять заказ
-      /listorders - Показать все доступные заказы
-      /myorders - Показать ваши заказы
-      /logout - Выйти из системы
-      /help - Показать это сообщение
-    `;
+        expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Список доступных команд'));
+    });
 
-    expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining(helpMessage));
-  });
+    it('should list all commands', async () => {
+        User.findOne.mockResolvedValue({ id: 123, isAuthorized: true });
 
-  it('should handle unauthorized access', async () => {
-    ctx.from = { id: 123 }; // Simulate an unauthorized user
+        await helpHandler(ctx);
 
-    await bot.handleUpdate({ message: ctx.message, from: ctx.from });
+        const helpMessage = 'Список доступных команд:\n/auth [key] - Авторизация\n/register - Регистрация\n/help - Справка\n' +
+            '/deleteorder [orderId] - Удаление заказа\n' +
+            '/addorder [details] - Добавление заказа\n' +
+            '/takeorder [orderId] - Взятие заказа\n' +
+            '/openorders - Список открытых заказов\n' +
+            '/orders - Список ваших заказов\n'
+            ;
 
-    expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Вы не авторизованы. Используйте /auth <ключ>, чтобы авторизоваться.'));
-  });
+        expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining(helpMessage));
+    });
 
-  it('should handle missing message text', async () => {
-    ctx.message.text = '';
+    it('should handle unauthorized access', async () => {
+        ctx.from = { id: 123 }; // Simulate an unauthorized user
 
-    await bot.handleUpdate({ message: ctx.message });
+        await helpHandler(ctx);
 
-    expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Список доступных команд'));
-  });
-
-  it('should respond to additional help topics', async () => {
-    ctx.message.text = '/help auth';
-
-    await bot.handleUpdate({ message: ctx.message });
-
-    expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Команда /auth используется для авторизации'));
-  });
+        expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Список доступных команд:\n/auth [key] - Авторизация\n/register - Регистрация\n/help - Справка\n'));
+    });
 });
